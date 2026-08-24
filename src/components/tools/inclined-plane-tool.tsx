@@ -13,8 +13,15 @@ export default function InclinedPlaneTool() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartCanvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>(0);
-  const startTimeRef = useRef<number>(0);
+  const lastFrameRef = useRef<number>(0);
   const dataRef = useRef<DataPoint[]>([]);
+  const posRef = useRef(0);       // 位移 m
+  const velRef = useRef(0);       // 速度 m/s
+  const timeRef = useRef(0);      // 时间 s
+  const runningRef = useRef(false);
+  const pausedRef = useRef(false);
+  const angleRef = useRef(30);
+  const frictionRef = useRef(0.2);
 
   const [angle, setAngle] = useState(30);
   const [mass, setMass] = useState(2);
@@ -22,23 +29,24 @@ export default function InclinedPlaneTool() {
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [time, setTime] = useState(0);
-  const [position, setPosition] = useState(0); // 沿斜面的位移（m）
+  const [position, setPosition] = useState(0);
   const [velocity, setVelocity] = useState(0);
 
   const g = 9.8;
-  const inclineLength = 6; // 斜面长度 6m
-  const blockSize = 0.6; // 木块边长 0.6m
+  const inclineLength = 6;
+  const blockSize = 0.6;
 
-  // 计算加速度
-  const calcAcceleration = useCallback(() => {
-    const theta = (angle * Math.PI) / 180;
-    const sinTheta = Math.sin(theta);
-    const cosTheta = Math.cos(theta);
-    const a = g * (sinTheta - friction * cosTheta);
-    return a > 0 ? a : 0; // 若为负则静止
-  }, [angle, friction]);
+  // 同步参数到 ref
+  useEffect(() => { angleRef.current = angle; }, [angle]);
+  useEffect(() => { frictionRef.current = friction; }, [friction]);
 
-  const acceleration = calcAcceleration();
+  const calcAcceleration = useCallback((ang: number, fric: number) => {
+    const theta = (ang * Math.PI) / 180;
+    const a = g * (Math.sin(theta) - fric * Math.cos(theta));
+    return a > 0 ? a : 0;
+  }, []);
+
+  const acceleration = calcAcceleration(angle, friction);
 
   // 绘制斜面和木块
   const drawScene = useCallback(() => {
@@ -129,7 +137,7 @@ export default function InclinedPlaneTool() {
     ctx.setLineDash([]);
 
     // 木块位置计算
-    const s = Math.min(position, inclineLength - blockSize);
+    const s = Math.min(posRef.current, inclineLength - blockSize);
     const blockCenterX = topX + (s + blockSize / 2) * scale * Math.cos(theta);
     const blockCenterY = topY + (s + blockSize / 2) * scale * Math.sin(theta);
 
@@ -162,7 +170,7 @@ export default function InclinedPlaneTool() {
     ctx.stroke();
 
     // 重力箭头
-    if (isRunning || isPaused) {
+    if (runningRef.current || pausedRef.current) {
       const arrowLen = 30;
       const arrowX = blockCenterX;
       const arrowY = blockCenterY;
@@ -185,7 +193,7 @@ export default function InclinedPlaneTool() {
       ctx.font = '12px Inter';
       ctx.fillText('mg', arrowX + 8, arrowY + arrowLen - 4);
     }
-  }, [angle, position, isRunning, isPaused, blockSize, inclineLength]);
+  }, [angle, blockSize, inclineLength]);
 
   // 绘制数据曲线
   const drawChart = useCallback(() => {
@@ -214,7 +222,7 @@ export default function InclinedPlaneTool() {
     }
 
     // 计算范围
-    const maxTime = Math.max(time, 5);
+    const maxTime = Math.max(timeRef.current, 5);
     const maxV = Math.max(...data.map(d => d.velocity), 10);
     const maxA = Math.max(...data.map(d => d.acceleration), 5);
 
@@ -302,70 +310,144 @@ export default function InclinedPlaneTool() {
     ctx.fillRect(padding.left + 130, padding.top - 14, 12, 4);
     ctx.fillStyle = 'rgba(232, 236, 244, 0.9)';
     ctx.fillText('加速度 a (m/s²)', padding.left + 148, padding.top - 8);
-  }, [time]);
+  }, []);
 
-  // 动画循环
+  // 动画循环（全部基于 ref，闭包稳定）
   const animate = useCallback((timestamp: number) => {
-    if (!isRunning || isPaused) return;
+    if (!runningRef.current || pausedRef.current) return;
 
-    if (startTimeRef.current === 0) {
-      startTimeRef.current = timestamp;
+    if (lastFrameRef.current === 0) {
+      lastFrameRef.current = timestamp;
     }
-    const elapsed = (timestamp - startTimeRef.current) / 1000;
+    const dt = (timestamp - lastFrameRef.current) / 1000;
+    lastFrameRef.current = timestamp;
 
-    const a = calcAcceleration();
-    const v = velocity + a * (elapsed - time);
-    const s = position + velocity * (elapsed - time) + 0.5 * a * (elapsed - time) ** 2;
+    const a = calcAcceleration(angleRef.current, frictionRef.current);
+    const v = velRef.current + a * dt;
+    const s = posRef.current + velRef.current * dt + 0.5 * a * dt * dt;
+    const t = timeRef.current + dt;
 
-    // 检查是否到达底部
+    // 到达底部
     if (s >= inclineLength - blockSize) {
-      setPosition(inclineLength - blockSize);
-      setVelocity(0);
-      setTime(elapsed);
-      dataRef.current.push({ time: elapsed, velocity: 0, acceleration: 0 });
+      posRef.current = inclineLength - blockSize;
+      velRef.current = 0;
+      timeRef.current = t;
+      dataRef.current.push({ time: t, velocity: 0, acceleration: 0 });
+      runningRef.current = false;
+      pausedRef.current = false;
       setIsRunning(false);
       setIsPaused(false);
+      setPosition(inclineLength - blockSize);
+      setVelocity(0);
+      setTime(t);
       drawScene();
       drawChart();
       return;
     }
 
-    setTime(elapsed);
-    setPosition(s);
-    setVelocity(v);
+    posRef.current = s;
+    velRef.current = v;
+    timeRef.current = t;
 
-    // 添加数据点（每100ms左右加一个点）
-    if (dataRef.current.length === 0 || elapsed - dataRef.current[dataRef.current.length - 1].time >= 0.05) {
-      dataRef.current.push({ time: elapsed, velocity: v, acceleration: a });
-      if (dataRef.current.length > 500) {
-        dataRef.current.shift();
-      }
+    // 每 50ms 加一个数据点
+    const d = dataRef.current;
+    if (d.length === 0 || t - d[d.length - 1].time >= 0.05) {
+      d.push({ time: t, velocity: v, acceleration: a });
+      if (d.length > 500) d.shift();
+    }
+
+    // 节流更新UI数值（每 ~80ms）
+    if (Math.floor(t * 12) !== Math.floor((t - dt) * 12)) {
+      setTime(t);
+      setPosition(s);
+      setVelocity(v);
     }
 
     drawScene();
     drawChart();
 
     animationRef.current = requestAnimationFrame(animate);
-  }, [isRunning, isPaused, velocity, position, time, calcAcceleration, drawScene, drawChart, inclineLength, blockSize]);
+  }, [calcAcceleration, drawScene, drawChart, inclineLength, blockSize]);
 
-  // 启动/暂停动画
-  useEffect(() => {
-    if (isRunning && !isPaused) {
-      startTimeRef.current = 0; // 重置
-      animationRef.current = requestAnimationFrame(animate);
+  const handleStart = () => {
+    const a = calcAcceleration(angleRef.current, frictionRef.current);
+    if (a === 0) return;
+
+    // 如果已经到底部，先重置
+    if (posRef.current >= inclineLength - blockSize) {
+      posRef.current = 0;
+      velRef.current = 0;
+      timeRef.current = 0;
+      setPosition(0);
+      setVelocity(0);
+      setTime(0);
+      dataRef.current = [];
     }
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [isRunning, isPaused, animate]);
 
-  // 参数变化时重绘
+    dataRef.current = [{ time: timeRef.current, velocity: velRef.current, acceleration: a }];
+    runningRef.current = true;
+    pausedRef.current = false;
+    lastFrameRef.current = 0;
+    setIsRunning(true);
+    setIsPaused(false);
+
+    cancelAnimationFrame(animationRef.current);
+    animationRef.current = requestAnimationFrame(animate);
+  };
+
+  const handlePause = () => {
+    if (pausedRef.current) {
+      // 恢复
+      pausedRef.current = false;
+      lastFrameRef.current = 0;
+      setIsPaused(false);
+      animationRef.current = requestAnimationFrame(animate);
+    } else {
+      pausedRef.current = true;
+      setIsPaused(true);
+      cancelAnimationFrame(animationRef.current);
+    }
+  };
+
+  const handleReset = () => {
+    cancelAnimationFrame(animationRef.current);
+    runningRef.current = false;
+    pausedRef.current = false;
+    posRef.current = 0;
+    velRef.current = 0;
+    timeRef.current = 0;
+    lastFrameRef.current = 0;
+    dataRef.current = [];
+    setIsRunning(false);
+    setIsPaused(false);
+    setPosition(0);
+    setVelocity(0);
+    setTime(0);
+    // 下一帧重绘
+    requestAnimationFrame(() => {
+      drawScene();
+      drawChart();
+    });
+  };
+
+  // 参数变化时重置运行状态，避免物理不一致
   useEffect(() => {
-    drawScene();
-    drawChart();
-  }, [drawScene, drawChart]);
+    if (runningRef.current) {
+      handleReset();
+    } else {
+      // 仅重绘
+      drawScene();
+      drawChart();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [angle, mass, friction]);
+
+  // 组件卸载时清理
+  useEffect(() => {
+    return () => {
+      cancelAnimationFrame(animationRef.current);
+    };
+  }, []);
 
   // 响应式canvas
   useEffect(() => {
@@ -393,42 +475,6 @@ export default function InclinedPlaneTool() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [drawScene, drawChart]);
-
-  const handleStart = () => {
-    if (acceleration === 0) return; // 静止，不启动
-    if (position >= inclineLength - blockSize) {
-      // 已经到底了，重置再开始
-      setPosition(0);
-      setVelocity(0);
-      setTime(0);
-      dataRef.current = [];
-    }
-    dataRef.current = [{ time: 0, velocity: velocity, acceleration: acceleration }];
-    setIsRunning(true);
-    setIsPaused(false);
-  };
-
-  const handlePause = () => {
-    setIsPaused(!isPaused);
-  };
-
-  const handleReset = () => {
-    setIsRunning(false);
-    setIsPaused(false);
-    setPosition(0);
-    setVelocity(0);
-    setTime(0);
-    dataRef.current = [];
-    startTimeRef.current = 0;
-  };
-
-  // 角度变化时如果在运行中，重置（避免物理不一致）
-  useEffect(() => {
-    if (isRunning) {
-      handleReset();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [angle, mass, friction]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
