@@ -41,8 +41,8 @@ export default function ToolDetailPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await api.get<Tool>(`/tools/${params.id}`);
-        setTool(data);
+        const res: any = await api.get(`/tools/${params.id}`);
+        setTool(res.tool || null);
 
         // record use
         try {

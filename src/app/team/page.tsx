@@ -59,7 +59,7 @@ export default function TeamPage() {
 
   const loadTeam = async () => {
     try {
-      const data = await api.get('/api/team');
+      const data = await api.get('/team');
       setTeam((data as any).team);
       setTeamName((data as any).team.name);
     } catch {
@@ -71,7 +71,7 @@ export default function TeamPage() {
   const handleSaveName = async () => {
     if (!teamName.trim()) return;
     try {
-      await api.put('/api/team', { name: teamName.trim() });
+      await api.put('/team', { name: teamName.trim() });
       setEditingName(false);
       loadTeam();
     } catch (e: any) {
@@ -82,7 +82,7 @@ export default function TeamPage() {
   const handleInvite = async () => {
     if (!inviteEmail) return;
     try {
-      const res = await api.post('/api/team/invite', { email: inviteEmail });
+      const res = await api.post('/team/invite', { email: inviteEmail });
       setInviteLink((res as any).inviteLink || '');
       setInviteEmail('');
     } catch (e: any) {
@@ -103,7 +103,7 @@ export default function TeamPage() {
   const toggleAdmin = async (memberId: string, isCurrentlyAdmin: boolean) => {
     if (!confirm(isCurrentlyAdmin ? '确定取消该成员的管理员权限？' : '确定设为管理员？')) return;
     try {
-      await api.put(`/api/team/members/${memberId}`, {
+      await api.put(`/team/members/${memberId}`, {
         role: isCurrentlyAdmin ? 'team_user' : 'team_admin',
       });
       loadTeam();
@@ -115,7 +115,7 @@ export default function TeamPage() {
   const removeMember = async (memberId: string) => {
     if (!confirm('确定移除该成员？')) return;
     try {
-      await api.delete(`/api/team/members/${memberId}`);
+      await api.delete(`/team/members/${memberId}`);
       loadTeam();
     } catch (e: any) {
       alert(e?.message || '移除失败');

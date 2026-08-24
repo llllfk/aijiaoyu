@@ -23,7 +23,7 @@ export default function AdminTeamsPage() {
   const loadTeams = async () => {
     setLoading(true);
     try {
-      const data = await api.get('/api/admin/teams');
+      const data = await api.get('/admin/teams');
       setTeams((data as any).teams || []);
     } catch {
       // ignore
@@ -39,7 +39,7 @@ export default function AdminTeamsPage() {
     if (!newTeam.name) return;
     setSaving(true);
     try {
-      await api.post('/api/admin/teams', newTeam);
+      await api.post('/admin/teams', newTeam);
       setShowCreateModal(false);
       setNewTeam({ name: '', adminEmail: '' });
       loadTeams();
@@ -52,7 +52,7 @@ export default function AdminTeamsPage() {
   const handleDelete = async (teamId: string) => {
     if (!confirm('确定要解散该团队吗？所有成员将变为个人用户。')) return;
     try {
-      await api.delete(`/api/admin/teams/${teamId}`);
+      await api.delete(`/admin/teams/${teamId}`);
       loadTeams();
     } catch {
       alert('删除失败');

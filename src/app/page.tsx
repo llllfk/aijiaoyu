@@ -72,8 +72,8 @@ export default function HomePage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await api.get<Tool[]>('/tools?sort=useCount&limit=6');
-        setHotTools(data);
+        const res: any = await api.get('/tools?sort=useCount&limit=6');
+        setHotTools(res.tools || []);
       } catch {
         // fallback
       }

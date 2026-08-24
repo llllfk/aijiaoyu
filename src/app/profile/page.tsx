@@ -59,7 +59,7 @@ export default function ProfilePage() {
 
   const loadFavorites = async () => {
     try {
-      const data = await api.get('/api/user/favorites');
+      const data = await api.get('/user/favorites');
       setFavorites((data as any).tools || []);
     } catch {
       // ignore
@@ -68,7 +68,7 @@ export default function ProfilePage() {
 
   const loadTeam = async () => {
     try {
-      const data = await api.get('/api/team');
+      const data = await api.get('/team');
       setTeam((data as any).team);
     } catch {
       // ignore
@@ -79,10 +79,10 @@ export default function ProfilePage() {
   const saveNickname = async () => {
     setSaving(true);
     try {
-      await api.put('/api/user/profile', { nickname: nickname.trim() });
+      await api.put('/user/profile', { nickname: nickname.trim() });
       setEditing(false);
       // Update auth context
-      const res = await api.get('/api/auth/me');
+      const res = await api.get('/auth/me');
       // The auth context should handle this - reload page or update
       window.location.reload();
     } catch {

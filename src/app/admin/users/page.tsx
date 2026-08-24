@@ -34,7 +34,7 @@ export default function AdminUsersPage() {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const data = await api.get(`/api/admin/users${search ? `?search=${search}` : ''}`);
+      const data = await api.get(`/admin/users${search ? `?search=${search}` : ''}`);
       setUsers((data as any).users || []);
     } catch {
       // ignore
@@ -48,7 +48,7 @@ export default function AdminUsersPage() {
 
   const toggleStatus = async (userId: string, currentStatus: string) => {
     try {
-      await api.put(`/api/admin/users/${userId}`, {
+      await api.put(`/admin/users/${userId}`, {
         status: currentStatus === 'active' ? 'disabled' : 'active',
       });
       loadUsers();
@@ -59,7 +59,7 @@ export default function AdminUsersPage() {
 
   const changeRole = async (userId: string, newRole: string) => {
     try {
-      await api.put(`/api/admin/users/${userId}`, { role: newRole });
+      await api.put(`/admin/users/${userId}`, { role: newRole });
       loadUsers();
     } catch {
       alert('操作失败');
@@ -70,7 +70,7 @@ export default function AdminUsersPage() {
     if (!newUser.email || !newUser.password) return;
     setSaving(true);
     try {
-      await api.post('/api/admin/users', newUser);
+      await api.post('/admin/users', newUser);
       setShowCreateModal(false);
       setNewUser({ email: '', password: '', role: 'free_user' });
       loadUsers();

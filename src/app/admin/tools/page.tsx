@@ -46,7 +46,7 @@ export default function AdminToolsPage() {
   const loadTools = async () => {
     setLoading(true);
     try {
-      const data = await api.get('/api/admin/tools');
+      const data = await api.get('/admin/tools');
       setTools((data as any).tools || []);
     } catch {
       // ignore
@@ -82,9 +82,9 @@ export default function AdminToolsPage() {
     setSaving(true);
     try {
       if (editingTool) {
-        await api.put(`/api/admin/tools/${editingTool.id}`, form);
+        await api.put(`/admin/tools/${editingTool.id}`, form);
       } else {
-        await api.post('/api/admin/tools', form);
+        await api.post('/admin/tools', form);
       }
       setShowModal(false);
       loadTools();
@@ -96,7 +96,7 @@ export default function AdminToolsPage() {
 
   const toggleActive = async (tool: Tool) => {
     try {
-      await api.put(`/api/admin/tools/${tool.id}`, { isActive: !tool.isActive });
+      await api.put(`/admin/tools/${tool.id}`, { isActive: !tool.isActive });
       loadTools();
     } catch {
       alert('操作失败');

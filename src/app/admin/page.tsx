@@ -19,7 +19,7 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/api/admin/stats').then((res: any) => {
+    api.get('/admin/stats').then((res: any) => {
       setStats(res);
       setLoading(false);
     }).catch(() => setLoading(false));

@@ -37,8 +37,8 @@ function ToolsContent() {
         if (searchQuery) params.set('search', searchQuery);
         if (selectedSubject !== 'all') params.set('subject', selectedSubject);
         params.set('sort', sortBy);
-        const data = await api.get<Tool[]>(`/tools?${params.toString()}`);
-        setTools(data);
+        const res: any = await api.get(`/tools?${params.toString()}`);
+        setTools(res.tools || []);
       } catch {
         setTools([]);
       }
