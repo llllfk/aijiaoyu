@@ -18,6 +18,12 @@ function LoginContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const quickAccounts = [
+    { label: '超管账号', email: 'admin@platform.com', password: 'admin123456' },
+    { label: '团队管理员', email: 'manager@dysy.com', password: '123456' },
+    { label: '自由用户', email: 'free@user.com', password: '123456' },
+  ];
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -133,8 +139,24 @@ function LoginContent() {
 
           <div className="mt-6 pt-6 border-t border-[var(--border)]">
             <p className="text-xs text-center text-[var(--muted-foreground)] mb-3">
-              测试账号（超管）：admin@platform.com / admin123456
+              快捷登录（演示用）
             </p>
+            <div className="flex flex-col gap-2">
+              {quickAccounts.map((acc) => (
+                <button
+                  key={acc.email}
+                  type="button"
+                  onClick={() => {
+                    setEmail(acc.email);
+                    setPassword(acc.password);
+                  }}
+                  className="w-full py-2 px-3 text-xs rounded-lg bg-[var(--muted)] hover:bg-[var(--muted)]/70 text-[var(--foreground)] flex items-center justify-between transition-colors"
+                >
+                  <span className="font-medium">{acc.label}</span>
+                  <span className="text-[var(--muted-foreground)]">{acc.email}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </motion.div>

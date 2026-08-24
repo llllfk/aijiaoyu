@@ -72,7 +72,7 @@ export default function ToolDetailPage() {
   const toggleFavorite = async () => {
     if (!tool) return;
     if (!user) {
-      router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
+      router.push(`/login?redirect=${encodeURIComponent(window.location.pathname)}`);
       return;
     }
     try {
