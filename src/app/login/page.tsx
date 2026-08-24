@@ -24,7 +24,10 @@ function LoginContent() {
     setLoading(true);
     try {
       await login(email, password);
-      router.push(redirect);
+      // 确保状态同步后再跳转，回到来源页或首页
+      setTimeout(() => {
+        router.push(decodeURIComponent(redirect));
+      }, 100);
     } catch (err: any) {
       setError(err.message || '登录失败');
     }
