@@ -1,102 +1,143 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { RotateCcw, Users, Shuffle, List, ListEnd, X } from 'lucide-react';
-import { useLocalStorage } from '@/hooks/use-local-storage';
-import { cn } from '@/lib/utils';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  Play,
+  RotateCcw,
+  Users,
+  Settings2,
+  Plus,
+  X,
+  History,
+  Maximize2,
+  ListChecks,
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+interface Props {
+  isFullscreen?: boolean;
+}
 
 const DEFAULT_NAMES = [
   '张三',
   '李四',
   '王五',
   '赵六',
-  '陈七',
-  '周八',
-  '吴九',
-  '郑十',
-  '孙明',
-  '李华',
-  '王芳',
-  '刘洋',
+  '钱七',
+  '孙八',
+  '周九',
+  '吴十',
 ];
 
-export function RandomNameTool() {
-  const [namesText, setNamesText] = useLocalStorage(
-    'random-names-list',
-    DEFAULT_NAMES.join('\n'),
-  );
-  const [noRepeat, setNoRepeat] = useLocalStorage('random-names-no-repeat', false);
-  const [pickedNames, setPickedNames] = useState<string[]>([]);
+export default function RandomNameTool({ isFullscreen = false }: Props) {
+  const [names, setNames] = useState<string[]>(DEFAULT_NAMES);
   const [currentName, setCurrentName] = useState('点击开始');
   const [isRolling, setIsRolling] = useState(false);
   const [isPicked, setIsPicked] = useState(false);
-  const [showListPanel, setShowListPanel] = useState(false);
+  const [noRepeat, setNoRepeat] = useState(false);
+  const [pickedNames, setPickedNames] = useState<string[]>([]);
+  const [history, setHistory] = useState<string[]>([]);
+  const [showPanel, setShowPanel] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
+  const [nameInput, setNameInput] = useState(DEFAULT_NAMES.join('\n'));
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const rollStartTime = useRef(0);
+  const animationRef = useRef<number | null>(null);
 
-  const rollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const rollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Load from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('random-names');
+      if (saved) {
+        const arr = JSON.parse(saved);
+        setNames(arr);
+        setNameInput(arr.join('\n'));
+      }
+      const savedPicked = localStorage.getItem('random-names-picked');
+      if (savedPicked) setPickedNames(JSON.parse(savedPicked));
+      const savedNoRepeat = localStorage.getItem('random-no-repeat');
+      if (savedNoRepeat) setNoRepeat(savedNoRepeat === 'true');
+    } catch {
+      // ignore
+    }
+  }, []);
 
-  const names = namesText
-    .split('\n')
-    .map((n) => n.trim())
-    .filter((n) => n.length > 0);
+  // Save names
+  useEffect(() => {
+    localStorage.setItem('random-names', JSON.stringify(names));
+  }, [names]);
 
-  const availableNames = noRepeat
-    ? names.filter((n) => !pickedNames.includes(n))
-    : names;
+  useEffect(() => {
+    localStorage.setItem('random-names-picked', JSON.stringify(pickedNames));
+  }, [pickedNames]);
+
+  useEffect(() => {
+    localStorage.setItem('random-no-repeat', String(noRepeat));
+  }, [noRepeat]);
+
+  const getAvailableNames = useCallback(() => {
+    if (!noRepeat) return names;
+    return names.filter((n) => !pickedNames.includes(n));
+  }, [names, pickedNames, noRepeat]);
 
   const roll = useCallback(() => {
-    if (availableNames.length === 0) return;
-
-    if (isRolling) {
-      // 停止滚动
-      stopRolling();
+    const available = getAvailableNames();
+    if (available.length === 0) {
+      setCurrentName('已全部点完');
       return;
     }
 
     setIsRolling(true);
     setIsPicked(false);
+    rollStartTime.current = Date.now();
 
-    // 快速滚动效果
-    let rollCount = 0;
-    const totalRolls = 30; // 滚动次数
-    const baseInterval = 50; // 基础间隔
+    const totalDuration = 1500;
+    const animate = () => {
+      const elapsed = Date.now() - rollStartTime.current;
+      const progress = Math.min(elapsed / totalDuration, 1);
 
-    const doRoll = () => {
-      const randomIndex = Math.floor(Math.random() * availableNames.length);
-      setCurrentName(availableNames[randomIndex]);
-      rollCount++;
+      // Ease out - slow down gradually
+      const interval = 50 + progress * 450;
+      const randomName = available[Math.floor(Math.random() * available.length)];
+      setCurrentName(randomName);
 
-      if (rollCount < totalRolls) {
-        // 逐渐变慢
-        const delay = baseInterval + (rollCount / totalRolls) * 100;
-        rollTimeoutRef.current = setTimeout(doRoll, delay);
+      if (progress < 1) {
+        setTimeout(() => {
+          animationRef.current = requestAnimationFrame(animate);
+        }, interval);
       } else {
-        // 最终定格
-        const finalIndex = Math.floor(Math.random() * availableNames.length);
-        const picked = availableNames[finalIndex];
-        setCurrentName(picked);
+        // Stop on final name
+        const finalName = available[Math.floor(Math.random() * available.length)];
+        setCurrentName(finalName);
         setIsRolling(false);
         setIsPicked(true);
 
         if (noRepeat) {
-          setPickedNames((prev) => [...prev, picked]);
+          setPickedNames((prev) => [...prev, finalName]);
         }
+        setHistory((prev) => [finalName, ...prev].slice(0, 20));
       }
     };
 
-    doRoll();
-  }, [availableNames, isRolling, noRepeat]);
+    animationRef.current = requestAnimationFrame(animate);
+  }, [getAvailableNames, noRepeat]);
 
-  const stopRolling = useCallback(() => {
-    if (rollIntervalRef.current) {
-      clearInterval(rollIntervalRef.current);
-      rollIntervalRef.current = null;
-    }
-    if (rollTimeoutRef.current) {
-      clearTimeout(rollTimeoutRef.current);
-      rollTimeoutRef.current = null;
-    }
-    setIsRolling(false);
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (!isRolling) roll();
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [isRolling, roll]);
+
+  useEffect(() => {
+    return () => {
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, []);
 
   const resetPicked = () => {
@@ -105,212 +146,259 @@ export function RandomNameTool() {
     setIsPicked(false);
   };
 
-  // 键盘监听
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
-        e.preventDefault();
-        roll();
-      }
-    };
+  const applyNames = () => {
+    const newNames = nameInput
+      .split('\n')
+      .map((n) => n.trim())
+      .filter((n) => n.length > 0);
+    setNames(newNames);
+    setPickedNames([]);
+    setCurrentName('点击开始');
+    setIsPicked(false);
+    setShowSettings(false);
+  };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [roll]);
-
-  // 清理
-  useEffect(() => {
-    return () => {
-      if (rollIntervalRef.current) clearInterval(rollIntervalRef.current);
-      if (rollTimeoutRef.current) clearTimeout(rollTimeoutRef.current);
-    };
-  }, []);
-
-  // 当名单变化且当前没名字时重置
-  useEffect(() => {
-    if (currentName === '点击开始' && pickedNames.length === 0) return;
-    if (names.length === 0) {
-      setCurrentName('请添加名单');
-      setIsPicked(false);
-    }
-  }, [names.length, currentName, pickedNames.length]);
-
-  const allPicked = noRepeat && availableNames.length === 0 && names.length > 0;
+  const availableCount = getAvailableNames().length;
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-[600px]">
-      {/* Main Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Top Bar */}
-        <div className="p-4 md:p-6 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-lg">
-              <Users className="w-4 h-4 text-indigo-600" />
-              <span className="text-sm font-medium text-indigo-700">
-                共 {names.length} 人
-              </span>
-            </div>
+    <div className={`flex flex-col ${isFullscreen ? 'h-screen' : 'min-h-[600px]'}`}>
+      {/* Top bar */}
+      <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowPanel(!showPanel)}
+            className="p-2 rounded-lg hover:bg-[var(--muted)] transition-colors"
+            title="显示/隐藏面板"
+          >
+            <Users size={20} />
+          </button>
+          <div className="text-sm text-[var(--muted-foreground)]">
+            共 <span className="font-semibold text-[var(--foreground)]">{names.length}</span> 人
             {noRepeat && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 rounded-lg">
-                <Shuffle className="w-4 h-4 text-amber-600" />
-                <span className="text-sm font-medium text-amber-700">
-                  剩余 {availableNames.length} 人
-                </span>
+              <>
+                {' · '}剩余{' '}
+                <span className="font-semibold text-[var(--success)]">{availableCount}</span> 人
+              </>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className="p-2 rounded-lg hover:bg-[var(--muted)] transition-colors"
+            title="名单设置"
+          >
+            <Settings2 size={20} />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Side Panel */}
+        <AnimatePresence>
+          {showPanel && !isFullscreen && (
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 280, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              className="border-r border-[var(--border)] overflow-hidden flex-shrink-0"
+            >
+              <div className="p-4 h-full overflow-y-auto">
+                {/* No Repeat Toggle */}
+                <div className="mb-4">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <div
+                      onClick={() => setNoRepeat(!noRepeat)}
+                      className={`relative w-11 h-6 rounded-full transition-colors ${
+                        noRepeat ? 'bg-[var(--primary)]' : 'bg-[var(--muted)]'
+                      }`}
+                    >
+                      <div
+                        className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                          noRepeat ? 'translate-x-5' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </div>
+                    <span className="text-sm font-medium flex items-center gap-1.5">
+                      <ListChecks size={16} /> 不重复抽取
+                    </span>
+                  </label>
+                </div>
+
+                {/* History */}
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold flex items-center gap-1.5">
+                      <History size={14} /> 抽取历史
+                    </h3>
+                    {history.length > 0 && (
+                      <button
+                        onClick={resetPicked}
+                        className="text-xs text-[var(--muted-foreground)] hover:text-[var(--destructive)]"
+                      >
+                        重置
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                    {history.length === 0 ? (
+                      <p className="text-xs text-[var(--muted-foreground)] py-4 text-center">
+                        暂无抽取记录
+                      </p>
+                    ) : (
+                      history.map((name, i) => (
+                        <div
+                          key={i}
+                          className={`px-3 py-1.5 rounded-lg text-sm ${
+                            i === 0
+                              ? 'bg-[var(--primary)]/10 text-[var(--primary)] font-medium'
+                              : 'text-[var(--muted-foreground)]'
+                          }`}
+                        >
+                          {i + 1}. {name}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Picked list (no-repeat mode) */}
+                {noRepeat && pickedNames.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold mb-2">已点名单</h3>
+                    <div className="flex flex-wrap gap-1.5">
+                      {pickedNames.map((name, i) => (
+                        <span
+                          key={i}
+                          className="px-2 py-0.5 text-xs rounded-md bg-[var(--muted)] text-[var(--muted-foreground)] line-through"
+                        >
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Settings Panel */}
+        <AnimatePresence>
+          {showSettings && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-20 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+              onClick={() => setShowSettings(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="glass-card rounded-2xl p-6 w-full max-w-md"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">名单管理</h3>
+                  <button
+                    onClick={() => setShowSettings(false)}
+                    className="p-1.5 rounded-lg hover:bg-[var(--muted)]"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                <p className="text-sm text-[var(--muted-foreground)] mb-3">
+                  每行一个名字，粘贴或输入学生名单
+                </p>
+                <textarea
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  rows={12}
+                  className="w-full p-3 rounded-xl text-sm resize-none"
+                  placeholder="张三&#10;李四&#10;王五"
+                />
+                <div className="flex gap-3 mt-4">
+                  <button
+                    onClick={() => setShowSettings(false)}
+                    className="flex-1 py-2.5 rounded-xl bg-[var(--muted)] text-sm font-medium"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={applyNames}
+                    className="flex-1 py-2.5 rounded-xl gradient-bg text-white text-sm font-medium"
+                  >
+                    应用
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Main Display */}
+        <div className="flex-1 flex flex-col items-center justify-center p-6 relative">
+          <div
+            onClick={roll}
+            className="cursor-pointer select-none text-center w-full flex-1 flex flex-col items-center justify-center"
+          >
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentName + (isPicked ? 'picked' : 'rolling')}
+                initial={isPicked ? { scale: 0.5, opacity: 0 } : {}}
+                animate={isPicked ? { scale: 1.1, opacity: 1 } : {}}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className={`font-bold leading-none ${
+                  isFullscreen ? 'text-8xl md:text-9xl' : 'text-6xl md:text-8xl'
+                } ${
+                  isPicked
+                    ? 'gradient-text drop-shadow-lg'
+                    : isRolling
+                    ? 'text-[var(--muted-foreground)]'
+                    : 'text-[var(--muted-foreground)]'
+                }`}
+              >
+                {currentName}
+              </motion.div>
+            </AnimatePresence>
+
+            {!isRolling && !isPicked && names.length > 0 && (
+              <p className="mt-8 text-[var(--muted-foreground)] text-sm">
+                点击屏幕或按空格键开始点名
+              </p>
+            )}
+
+            {isPicked && (
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-6 text-lg text-[var(--primary)] font-medium"
+              >
+                🎉 恭喜被选中！
+              </motion.p>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={noRepeat}
-                onChange={(e) => {
-                  setNoRepeat(e.target.checked);
-                  if (e.target.checked) {
-                    setPickedNames([]);
-                  }
-                }}
-                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-              />
-              <span className="text-sm text-gray-600">不重复抽取</span>
-            </label>
-
+          {/* Bottom controls */}
+          <div className="flex gap-3 mt-6">
             <button
-              onClick={resetPicked}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors text-sm"
+              onClick={roll}
+              disabled={isRolling || availableCount === 0}
+              className="px-8 py-3 rounded-xl gradient-bg text-white font-medium flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <RotateCcw className="w-4 h-4" />
-              重置
+              <Play size={20} />
+              {isRolling ? '抽取中...' : '开始点名'}
             </button>
-
-            <button
-              onClick={() => setShowListPanel(!showListPanel)}
-              className="lg:hidden flex items-center gap-1.5 px-3 py-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors text-sm"
-            >
-              <List className="w-4 h-4" />
-              名单
-            </button>
-          </div>
-        </div>
-
-        {/* Name Display */}
-        <div
-          className={cn(
-            'flex-1 flex items-center justify-center cursor-pointer select-none transition-colors',
-            isPicked ? 'bg-gradient-to-b from-amber-50 to-white' : 'bg-white',
-          )}
-          onClick={roll}
-        >
-          <div className="text-center px-4">
-            <div
-              className={cn(
-                'font-bold text-indigo-600 transition-all duration-300',
-                isPicked ? 'text-6xl md:text-8xl lg:text-9xl animate-bounce-in' : 'text-5xl md:text-7xl lg:text-8xl',
-                isRolling && 'scale-105',
-                allPicked && 'text-gray-400 text-3xl md:text-5xl',
-              )}
-              style={{
-                textShadow: isPicked
-                  ? '0 4px 20px rgba(79, 70, 229, 0.2)'
-                  : 'none',
-              }}
-            >
-              {allPicked ? '🎉 全部抽完了！' : currentName}
-            </div>
-
-            <p className="mt-6 text-gray-400 text-sm md:text-base">
-              {isRolling
-                ? '滚动中... 点击停止'
-                : allPicked
-                  ? '点击重置重新开始'
-                  : '点击屏幕或按空格键开始抽取'}
-            </p>
-          </div>
-        </div>
-
-        {/* Bottom: Mobile Picked List */}
-        {!showListPanel && pickedNames.length > 0 && (
-          <div className="lg:hidden p-4 border-t border-gray-100">
-            <div className="flex items-center gap-2 mb-2">
-              <ListEnd className="w-4 h-4 text-gray-400" />
-              <span className="text-sm font-medium text-gray-600">
-                已抽取 ({pickedNames.length})
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2 max-h-20 overflow-y-auto">
-              {pickedNames.map((name, i) => (
-                <span
-                  key={i}
-                  className="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-lg text-sm"
-                >
-                  {i + 1}. {name}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Side Panel - Name List */}
-      <div
-        className={cn(
-          'lg:w-80 border-l border-gray-100 bg-gray-50/50 flex flex-col',
-          showListPanel
-            ? 'fixed inset-0 z-50 bg-white'
-            : 'hidden lg:flex',
-        )}
-      >
-        {showListPanel && (
-          <div className="flex items-center justify-between p-4 border-b border-gray-100 lg:hidden">
-            <h3 className="font-semibold text-gray-900">名单管理</h3>
-            <button
-              onClick={() => setShowListPanel(false)}
-              className="p-2 hover:bg-gray-100 rounded-lg"
-            >
-              <X className="w-5 h-5 text-gray-500" />
-            </button>
-          </div>
-        )}
-
-        <div className="p-4 lg:p-6 flex-1 flex flex-col">
-          <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <List className="w-4 h-4 text-indigo-600" />
-            学生名单
-          </h3>
-          <p className="text-xs text-gray-400 mb-3">每行一个名字，自动保存</p>
-
-          <textarea
-            value={namesText}
-            onChange={(e) => {
-              setNamesText(e.target.value);
-              setPickedNames([]);
-              setCurrentName('点击开始');
-              setIsPicked(false);
-            }}
-            className="flex-1 w-full p-3 bg-white rounded-xl border border-gray-200 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 outline-none text-sm text-gray-700 resize-none min-h-[200px] lg:min-h-0"
-            placeholder="请输入学生名单，每行一个名字"
-          />
-        </div>
-
-        {/* Picked List */}
-        <div className="p-4 lg:p-6 border-t border-gray-200/50">
-          <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <ListEnd className="w-4 h-4 text-amber-500" />
-            已抽取 ({pickedNames.length})
-          </h3>
-          <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
-            {pickedNames.length > 0 ? (
-              pickedNames.map((name, i) => (
-                <span
-                  key={i}
-                  className="px-2.5 py-1 bg-amber-50 text-amber-700 rounded-lg text-sm"
-                >
-                  {i + 1}. {name}
-                </span>
-              ))
-            ) : (
-              <span className="text-sm text-gray-400">暂无抽取记录</span>
+            {(pickedNames.length > 0 || isPicked) && (
+              <button
+                onClick={resetPicked}
+                className="px-6 py-3 rounded-xl bg-[var(--muted)] font-medium flex items-center gap-2 hover:bg-[var(--muted)]/80 transition-colors"
+              >
+                <RotateCcw size={18} />
+                重置
+              </button>
             )}
           </div>
         </div>

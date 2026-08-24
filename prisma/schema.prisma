@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  nickname  String?
+  role      String   @default("free_user")
+  teamId    String?
+  team      Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  favorites String   @default("[]")
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String
+  adminId   String?
+  members   User[]
+  createdAt DateTime @default(now())
+}
+
+model Tool {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  emoji       String
+  subject     String
+  description String
+  usage       String   @default("")
+  useCount    Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model UsageLog {
+  id        String   @id @default(cuid())
+  toolId    String
+  userId    String?
+  teamId    String?
+  createdAt DateTime @default(now())
+}

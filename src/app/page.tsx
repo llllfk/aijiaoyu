@@ -1,228 +1,294 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  Sparkles,
-  Search,
-  ArrowRight,
-  Zap,
-  Lightbulb,
-  Users,
-  TrendingUp,
-} from 'lucide-react';
-import { subjects, tools } from '@/data/tools';
-import { ToolCard } from '@/components/tool-card';
+import { Search, ArrowRight, Sparkles, Zap, Target, Users } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { subjects } from '@/data/subjects';
+import api from '@/lib/api-client';
+
+interface Tool {
+  id: string;
+  name: string;
+  slug: string;
+  emoji: string;
+  subject: string;
+  description: string;
+  useCount: number;
+}
+
+function useCountUp(target: number, duration = 1500) {
+  const [count, setCount] = useState(0);
+  const ref = useRef<HTMLDivElement>(null);
+  const started = useRef(false);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !started.current) {
+          started.current = true;
+          const startTime = Date.now();
+          const step = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const ease = 1 - Math.pow(1 - progress, 3);
+            setCount(Math.floor(target * ease));
+            if (progress < 1) requestAnimationFrame(step);
+          };
+          requestAnimationFrame(step);
+        }
+      },
+      { threshold: 0.3 }
+    );
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [target, duration]);
+
+  return { count, ref };
+}
+
+function StatCard({ value, label, suffix = '', icon: Icon }: { value: number; label: string; suffix?: string; icon: any }) {
+  const { count, ref } = useCountUp(value);
+  return (
+    <div ref={ref} className="glass-card rounded-xl p-6 hover-lift">
+      <Icon size={24} className="text-[var(--primary)] mb-3" />
+      <div className="text-3xl font-bold gradient-text">
+        {count.toLocaleString()}
+        {suffix}
+      </div>
+      <div className="text-sm text-[var(--muted-foreground)] mt-1">{label}</div>
+    </div>
+  );
+}
 
 export default function HomePage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
+  const [hotTools, setHotTools] = useState<Tool[]>([]);
+  const [stats, setStats] = useState({ tools: 7, teachers: 1280, uses: 58960, rating: 98 });
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await api.get<Tool[]>('/tools?sort=useCount&limit=6');
+        setHotTools(data);
+      } catch {
+        // fallback
+      }
+    };
+    load();
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/tools?q=${encodeURIComponent(searchQuery)}`);
-    } else {
-      router.push('/tools');
-    }
+    router.push(`/tools?q=${encodeURIComponent(searchQuery)}`);
   };
 
-  const hotTools = [...tools].sort((a, b) => b.usageCount - a.usageCount);
+  const handleSubjectClick = (subjectId: string) => {
+    router.push(`/tools?subject=${encodeURIComponent(subjectId)}`);
+  };
 
   return (
-    <div className="animate-fade-in-up">
+    <div>
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        {/* 背景装饰 */}
-        <div className="absolute inset-0 bg-gradient-to-b from-indigo-50/50 to-transparent pointer-events-none" />
-        <div className="absolute top-10 -left-20 w-72 h-72 bg-indigo-200/30 rounded-full blur-3xl" />
-        <div className="absolute top-20 -right-20 w-80 h-80 bg-amber-200/30 rounded-full blur-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-transparent to-indigo-600/10 dark:from-blue-600/20 dark:via-transparent dark:to-indigo-600/20" />
+        <div className="absolute inset-0 grid-pattern opacity-40" />
+        <div className="absolute top-1/4 -left-20 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 -right-20 w-72 h-72 bg-indigo-500/20 rounded-full blur-3xl" />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
-          <div className="text-center max-w-3xl mx-auto">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm border border-gray-100 mb-6">
-              <Sparkles className="w-4 h-4 text-amber-500" />
-              <span className="text-sm font-medium text-gray-600">
-                AI赋能的智慧教学平台
-              </span>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 lg:pt-28 lg:pb-32">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="text-center max-w-4xl mx-auto"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card text-sm mb-8">
+              <Sparkles size={16} className="text-[var(--primary)]" />
+              <span className="text-[var(--muted-foreground)]">AI赋能的教育工具平台</span>
             </div>
 
-            {/* Title */}
-            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6 tracking-tight">
-              <span className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-400 bg-clip-text text-transparent">
-                智学工坊
-              </span>
+            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold leading-tight mb-6">
+              让每一堂课
               <br />
-              <span className="text-3xl md:text-5xl">让课堂更有魔力</span>
+              都充满<span className="gradient-text">互动</span>
             </h1>
 
-            <p className="text-lg md:text-xl text-gray-500 mb-10 leading-relaxed">
-              面向中小学教师的学科交互教学工具，
-              <br className="hidden sm:block" />
-              随机点名、课堂计时、函数绘图…让每一堂课都充满惊喜
+            <p className="text-lg text-[var(--muted-foreground)] max-w-2xl mx-auto mb-10">
+              面向中小学教师的学科交互教学工具，随机点名、课堂计时、函数绘图、转盘抽奖…
+              让课堂更生动，让学习更有趣。
             </p>
 
-            {/* Search Box */}
-            <form
-              onSubmit={handleSearch}
-              className="relative max-w-xl mx-auto mb-10"
-            >
+            <form onSubmit={handleSearch} className="max-w-xl mx-auto mb-8">
               <div className="relative">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Search
+                  size={20}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)]"
+                />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="搜索教学工具，如：随机点名、计时器、函数绘图..."
-                  className="w-full pl-14 pr-32 py-4 bg-white rounded-2xl border border-gray-200 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 outline-none text-gray-700 placeholder-gray-400 shadow-lg shadow-indigo-100/50 transition-all"
+                  placeholder="搜索工具，如：随机点名、函数绘图…"
+                  className="w-full pl-12 pr-4 py-4 rounded-xl glass-card text-base focus:ring-2 focus:ring-[var(--primary)]/20 transition-all"
                 />
-                <button
-                  type="submit"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-700 hover:to-indigo-600 text-white rounded-xl font-medium text-sm transition-all shadow-md hover:shadow-lg"
-                >
-                  搜索
-                </button>
               </div>
             </form>
 
-            {/* Quick links */}
-            <div className="flex flex-wrap items-center justify-center gap-3 text-sm">
-              <span className="text-gray-400">快速体验：</span>
-              {tools.slice(0, 3).map((tool) => (
-                <Link
-                  key={tool.id}
-                  href={`/tools/${tool.slug}`}
-                  className="px-4 py-1.5 bg-white hover:bg-indigo-50 rounded-full border border-gray-200 hover:border-indigo-200 text-gray-600 hover:text-indigo-600 transition-all"
-                >
-                  {tool.emoji} {tool.name}
-                </Link>
-              ))}
+            <div className="flex flex-wrap justify-center gap-4">
+              <Link
+                href="/tools"
+                className="inline-flex items-center gap-2 px-8 py-3 rounded-xl gradient-bg text-white font-medium hover:opacity-90 transition-opacity"
+              >
+                免费开始使用
+                <ArrowRight size={18} />
+              </Link>
+              <Link
+                href="#subjects"
+                className="inline-flex items-center gap-2 px-8 py-3 rounded-xl glass-card font-medium hover:bg-[var(--muted)] transition-colors"
+              >
+                浏览工具
+              </Link>
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4">
-        <div className="bg-white rounded-3xl p-8 card-shadow grid grid-cols-2 md:grid-cols-4 gap-8">
-          {[
-            { icon: <Users className="w-6 h-6" />, value: '50,000+', label: '活跃教师' },
-            { icon: <Zap className="w-6 h-6" />, value: '100万+', label: '累计使用' },
-            { icon: <Lightbulb className="w-6 h-6" />, value: '50+', label: '学科工具' },
-            { icon: <TrendingUp className="w-6 h-6" />, value: '99.9%', label: '好评率' },
-          ].map((stat, i) => (
-            <div key={i} className="text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-indigo-100 to-indigo-50 rounded-2xl text-indigo-600 mb-3">
-                {stat.icon}
-              </div>
-              <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
-              <div className="text-sm text-gray-500 mt-1">{stat.label}</div>
-            </div>
-          ))}
+      {/* Stats */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 relative z-10">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard value={stats.tools} label="教学工具" icon={Zap} />
+          <StatCard value={stats.teachers} label="注册教师" icon={Users} />
+          <StatCard value={stats.uses} label="累计使用" icon={Target} />
+          <StatCard value={stats.rating} label="好评率" suffix="%" icon={Sparkles} />
         </div>
       </section>
 
-      {/* Subject Categories */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
-        <div className="text-center mb-10">
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
-            按学科浏览
-          </h2>
-          <p className="text-gray-500">选择学科，快速找到你需要的教学工具</p>
+      {/* Subjects */}
+      <section id="subjects" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="text-center mb-12">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-4">学科分类</h2>
+          <p className="text-[var(--muted-foreground)]">覆盖17个学科，一站式教学工具集合</p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-          {subjects.slice(1).map((subject) => (
-            <Link
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-9 gap-3">
+          {subjects.map((subject, index) => (
+            <motion.button
               key={subject.id}
-              href={`/tools?subject=${subject.id}`}
-              className="group bg-white rounded-2xl p-6 card-shadow hover:card-shadow-hover transition-all duration-300 hover:-translate-y-1 text-center border border-gray-50"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.3, delay: index * 0.02 }}
+              onClick={() => handleSubjectClick(subject.id)}
+              className="glass-card rounded-xl p-4 text-center hover-lift cursor-pointer group"
             >
-              <div className="text-4xl mb-3 group-hover:scale-110 transition-transform duration-300">
+              <div className="text-3xl mb-2 group-hover:scale-110 transition-transform duration-300">
                 {subject.emoji}
               </div>
-              <h3 className="font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">
+              <div className="text-xs font-medium text-[var(--muted-foreground)] group-hover:text-[var(--foreground)] transition-colors">
                 {subject.name}
-              </h3>
-              <p className="text-xs text-gray-400 mt-1">
-                {tools.filter((t) => t.subject === subject.id).length} 个工具
-              </p>
-            </Link>
+              </div>
+            </motion.button>
           ))}
         </div>
       </section>
 
       {/* Hot Tools */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="flex items-center justify-between mb-8">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="flex items-end justify-between mb-12">
           <div>
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-              🔥 热门工具
-            </h2>
-            <p className="text-gray-500">老师们最常用的教学工具</p>
+            <h2 className="text-2xl sm:text-3xl font-bold mb-2">热门工具</h2>
+            <p className="text-[var(--muted-foreground)]">老师们最常用的教学工具</p>
           </div>
           <Link
             href="/tools"
-            className="hidden sm:flex items-center gap-1 text-indigo-600 hover:text-indigo-700 font-medium text-sm"
+            className="text-sm text-[var(--primary)] hover:underline flex items-center gap-1"
           >
-            查看全部
-            <ArrowRight className="w-4 h-4" />
+            查看全部 <ArrowRight size={14} />
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {hotTools.map((tool) => (
-            <ToolCard key={tool.id} tool={tool} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {hotTools.map((tool, index) => (
+            <motion.div
+              key={tool.id}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.3, delay: index * 0.05 }}
+            >
+              <Link href={`/tools/${tool.id}`} className="block glass-card rounded-2xl p-6 hover-lift group">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform duration-300">
+                    {tool.emoji}
+                  </div>
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-medium">
+                    {tool.subject}
+                  </span>
+                </div>
+                <h3 className="font-semibold text-lg mb-2 group-hover:text-[var(--primary)] transition-colors">
+                  {tool.name}
+                </h3>
+                <p className="text-sm text-[var(--muted-foreground)] line-clamp-2 mb-4">
+                  {tool.description}
+                </p>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-[var(--muted-foreground)]">
+                    {tool.useCount.toLocaleString()} 次使用
+                  </span>
+                  <span className="text-sm text-[var(--primary)] font-medium flex items-center gap-1">
+                    开始使用 <ArrowRight size={14} />
+                  </span>
+                </div>
+              </Link>
+            </motion.div>
           ))}
-        </div>
-
-        <div className="mt-8 text-center sm:hidden">
-          <Link
-            href="/tools"
-            className="inline-flex items-center gap-1 text-indigo-600 font-medium"
-          >
-            查看全部工具
-            <ArrowRight className="w-4 h-4" />
-          </Link>
         </div>
       </section>
 
       {/* Features */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
-        <div className="bg-gradient-to-br from-indigo-600 to-indigo-500 rounded-3xl p-8 md:p-12 text-white relative overflow-hidden">
-          {/* 装饰圆 */}
-          <div className="absolute -top-20 -right-20 w-60 h-60 bg-white/10 rounded-full" />
-          <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-white/10 rounded-full" />
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="text-center mb-16">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-4">为什么选择智学工具</h2>
+          <p className="text-[var(--muted-foreground)]">专为一线教师打造的高效教学助手</p>
+        </div>
 
-          <div className="relative grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                icon: '⚡',
-                title: '即开即用',
-                desc: '无需安装，打开浏览器就能用，投影平板都适配',
-              },
-              {
-                icon: '🎯',
-                title: '精准高效',
-                desc: '每个工具都针对课堂场景设计，操作简单不复杂',
-              },
-              {
-                icon: '✨',
-                title: '持续更新',
-                desc: '不断新增学科工具，根据老师反馈持续优化',
-              },
-            ].map((feature, i) => (
-              <div key={i} className="text-center md:text-left">
-                <div className="text-4xl mb-4">{feature.icon}</div>
-                <h3 className="text-xl font-bold mb-2">{feature.title}</h3>
-                <p className="text-indigo-100 text-sm leading-relaxed">
-                  {feature.desc}
-                </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {[
+            {
+              icon: Zap,
+              title: '开箱即用',
+              desc: '无需安装配置，打开浏览器即可使用，投屏课堂一键全屏，操作简单上手快。',
+            },
+            {
+              icon: Target,
+              title: '学科丰富',
+              desc: '覆盖17个学科，从随机点名到函数绘图，从转盘抽奖到元素周期表，满足多元教学场景。',
+            },
+            {
+              icon: Sparkles,
+              title: '持续更新',
+              desc: '每周都有新工具上线，根据教师反馈持续优化，AI赋能让教学更智能。',
+            },
+          ].map((feature, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: i * 0.1 }}
+              className="glass-card rounded-2xl p-8"
+            >
+              <div className="w-12 h-12 rounded-xl gradient-bg flex items-center justify-center text-white mb-5">
+                <feature.icon size={24} />
               </div>
-            ))}
-          </div>
+              <h3 className="text-lg font-semibold mb-3">{feature.title}</h3>
+              <p className="text-[var(--muted-foreground)] text-sm leading-relaxed">{feature.desc}</p>
+            </motion.div>
+          ))}
         </div>
       </section>
     </div>

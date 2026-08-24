@@ -1,482 +1,426 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Play,
   Pause,
   RotateCcw,
-  Timer as TimerIcon,
-  Clock,
-  Flag,
   Maximize2,
   Minimize2,
+  Clock,
+  TimerReset,
+  ListOrdered,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
-type TimerMode = 'countdown' | 'stopwatch';
-
-interface LapRecord {
-  index: number;
-  time: number;
-  totalTime: number;
+interface Props {
+  isFullscreen?: boolean;
 }
 
-export function TimerTool() {
-  const [mode, setMode] = useState<TimerMode>('countdown');
+const PRESETS = [1, 3, 5, 10, 15, 30];
+
+export default function TimerTool({ isFullscreen = false }: Props) {
+  const [mode, setMode] = useState<'countdown' | 'stopwatch'>('countdown');
+  const [totalSeconds, setTotalSeconds] = useState(300); // 5 minutes
+  const [remainingSeconds, setRemainingSeconds] = useState(300);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0); // 秒
-  const [totalTime, setTotalTime] = useState(300); // 倒计时总时间
-  const [inputMinutes, setInputMinutes] = useState(5);
-  const [inputSeconds, setInputSeconds] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [laps, setLaps] = useState<LapRecord[]>([]);
+  const [customMinutes, setCustomMinutes] = useState('');
+  const [laps, setLaps] = useState<number[]>([]);
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const flashRef = useRef<number | null>(null);
+  const startTimeRef = useRef(0);
+  const baseTimeRef = useRef(0);
 
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const startTimeRef = useRef<number>(0);
-  const baseTimeRef = useRef<number>(0);
+  // Load from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('timer-mode');
+      if (saved) setMode(saved as 'countdown' | 'stopwatch');
+      const savedDuration = localStorage.getItem('timer-duration');
+      if (savedDuration) {
+        const secs = parseInt(savedDuration);
+        setTotalSeconds(secs);
+        setRemainingSeconds(secs);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
-  const presetTimes = [
-    { label: '1分钟', seconds: 60 },
-    { label: '3分钟', seconds: 180 },
-    { label: '5分钟', seconds: 300 },
-    { label: '10分钟', seconds: 600 },
-    { label: '15分钟', seconds: 900 },
-  ];
+  useEffect(() => {
+    localStorage.setItem('timer-mode', mode);
+  }, [mode]);
 
-  // 格式化时间
-  const formatTime = (seconds: number): string => {
+  useEffect(() => {
+    localStorage.setItem('timer-duration', String(totalSeconds));
+  }, [totalSeconds]);
+
+  const playBeep = useCallback(() => {
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      const ctx = audioCtxRef.current;
+
+      // Play 3 beeps
+      for (let i = 0; i < 3; i++) {
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        oscillator.frequency.value = 800;
+        oscillator.type = 'sine';
+        gainNode.gain.setValueAtTime(0, ctx.currentTime + i * 0.4);
+        gainNode.gain.linearRampToValueAtTime(0.5, ctx.currentTime + i * 0.4 + 0.05);
+        gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + i * 0.4 + 0.3);
+        oscillator.start(ctx.currentTime + i * 0.4);
+        oscillator.stop(ctx.currentTime + i * 0.4 + 0.35);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Timer logic
+  useEffect(() => {
+    if (isRunning) {
+      startTimeRef.current = Date.now();
+      baseTimeRef.current = mode === 'countdown' ? remainingSeconds : elapsedSeconds;
+
+      intervalRef.current = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+        if (mode === 'countdown') {
+          const remaining = Math.max(0, baseTimeRef.current - elapsed);
+          setRemainingSeconds(remaining);
+          if (remaining === 0) {
+            setIsRunning(false);
+            setIsFinished(true);
+            playBeep();
+            // Flash effect
+            let count = 0;
+            const flash = () => {
+              if (flashRef.current) document.body.classList.remove('!bg-red-900/30');
+              else document.body.classList.add('!bg-red-900/30');
+              flashRef.current = flashRef.current ? null : 1;
+              count++;
+              if (count < 10) setTimeout(flash, 300);
+              else {
+                document.body.classList.remove('!bg-red-900/30');
+                flashRef.current = null;
+              }
+            };
+            flash();
+          }
+        } else {
+          setElapsedSeconds(baseTimeRef.current + elapsed);
+        }
+      }, 100);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [isRunning, mode]);
+
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
+
+  const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // 计算颜色 - 倒计时模式下根据剩余时间比例
-  const getTimeColor = (): string => {
-    if (mode === 'stopwatch') return 'text-white';
-    const ratio = currentTime / totalTime;
-    if (ratio > 0.5) return 'text-emerald-400';
-    if (ratio > 0.2) return 'text-amber-400';
-    return 'text-red-400';
+  const formatTimeWithMs = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    const ms = Math.floor((Date.now() - startTimeRef.current) % 1000 / 10);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
   };
 
-  const getProgressColor = (): string => {
-    if (mode === 'stopwatch') return '#34d399';
-    const ratio = currentTime / totalTime;
-    if (ratio > 0.5) return '#34d399';
-    if (ratio > 0.2) return '#fbbf24';
-    return '#f87171';
+  const setPreset = (minutes: number) => {
+    const secs = minutes * 60;
+    setTotalSeconds(secs);
+    setRemainingSeconds(secs);
+    setIsFinished(false);
+    setIsRunning(false);
   };
 
-  // 开始/暂停
-  const toggleTimer = useCallback(() => {
-    if (isRunning) {
-      // 暂停
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      setIsRunning(false);
+  const applyCustom = () => {
+    const mins = parseInt(customMinutes);
+    if (mins > 0 && mins <= 180) {
+      setPreset(mins);
+      setShowCustomInput(false);
+      setCustomMinutes('');
+    }
+  };
+
+  const toggleStart = () => {
+    if (mode === 'countdown' && remainingSeconds === 0) return;
+    setIsRunning(!isRunning);
+    setIsFinished(false);
+  };
+
+  const reset = () => {
+    setIsRunning(false);
+    setIsFinished(false);
+    if (mode === 'countdown') {
+      setRemainingSeconds(totalSeconds);
     } else {
-      // 开始
-      if (mode === 'countdown' && currentTime <= 0) return;
-
-      baseTimeRef.current = currentTime;
-      startTimeRef.current = Date.now();
-      setIsFinished(false);
-      setIsRunning(true);
+      setElapsedSeconds(0);
+      setLaps([]);
     }
-  }, [isRunning, mode, currentTime]);
+  };
 
-  // 重置
-  const resetTimer = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+  const addLap = () => {
+    if (mode === 'stopwatch' && isRunning) {
+      setLaps((prev) => [elapsedSeconds, ...prev]);
     }
+  };
+
+  const switchMode = (newMode: 'countdown' | 'stopwatch') => {
+    if (newMode === mode) return;
+    setMode(newMode);
     setIsRunning(false);
     setIsFinished(false);
     setLaps([]);
-
-    if (mode === 'countdown') {
-      setCurrentTime(totalTime);
+    if (newMode === 'countdown') {
+      setRemainingSeconds(totalSeconds);
     } else {
-      setCurrentTime(0);
+      setElapsedSeconds(0);
     }
-  }, [mode, totalTime]);
+  };
 
-  // 计次
-  const addLap = useCallback(() => {
-    if (mode === 'stopwatch' && isRunning) {
-      const lastLapTime = laps.length > 0 ? laps[laps.length - 1].totalTime : 0;
-      setLaps((prev) => [
-        {
-          index: prev.length + 1,
-          time: currentTime - lastLapTime,
-          totalTime: currentTime,
-        },
-        ...prev,
-      ]);
-    }
-  }, [mode, isRunning, currentTime, laps]);
-
-  // 切换模式
-  const switchMode = useCallback(
-    (newMode: TimerMode) => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      setIsRunning(false);
-      setIsFinished(false);
-      setLaps([]);
-      setMode(newMode);
-      if (newMode === 'countdown') {
-        setCurrentTime(totalTime);
-      } else {
-        setCurrentTime(0);
-      }
-    },
-    [totalTime],
-  );
-
-  // 设置倒计时时间
-  const setCountdownTime = useCallback((seconds: number) => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    setIsRunning(false);
-    setIsFinished(false);
-    setTotalTime(seconds);
-    setCurrentTime(seconds);
-    setInputMinutes(Math.floor(seconds / 60));
-    setInputSeconds(seconds % 60);
-  }, []);
-
-  // 手动设置时间
-  const applyManualTime = useCallback(() => {
-    const seconds = inputMinutes * 60 + inputSeconds;
-    if (seconds > 0) {
-      setCountdownTime(seconds);
-    }
-  }, [inputMinutes, inputSeconds, setCountdownTime]);
-
-  // 全屏切换
-  const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      containerRef.current?.requestFullscreen?.();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen?.();
-      setIsFullscreen(false);
-    }
-  }, []);
-
-  // 初始化倒计时
-  useEffect(() => {
-    if (mode === 'countdown') {
-      setCurrentTime(totalTime);
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // 计时器主循环
-  useEffect(() => {
-    if (!isRunning) return;
-
-    intervalRef.current = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
-
-      if (mode === 'countdown') {
-        const remaining = baseTimeRef.current - elapsed;
-        if (remaining <= 0) {
-          setCurrentTime(0);
-          setIsRunning(false);
-          setIsFinished(true);
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
-          }
-          // 播放提示音（可选）
-          try {
-            // 简单的蜂鸣
-            const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-            const oscillator = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            oscillator.frequency.value = 800;
-            oscillator.type = 'sine';
-            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-            oscillator.start(audioCtx.currentTime);
-            oscillator.stop(audioCtx.currentTime + 0.5);
-          } catch {
-            // ignore
-          }
-        } else {
-          setCurrentTime(remaining);
-        }
-      } else {
-        setCurrentTime(baseTimeRef.current + elapsed);
-      }
-    }, 100);
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [isRunning, mode]);
-
-  // 全屏状态监听
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
-
-  // 计算圆环进度
   const progress =
     mode === 'countdown'
-      ? (totalTime - currentTime) / totalTime
-      : (currentTime % 60) / 60;
+      ? totalSeconds > 0
+        ? remainingSeconds / totalSeconds
+        : 1
+      : 1;
 
-  const circleSize = 280;
-  const strokeWidth = 8;
-  const radius = (circleSize - strokeWidth) / 2;
+  const getColor = () => {
+    if (mode === 'stopwatch') return 'var(--success)';
+    if (progress > 0.5) return 'var(--success)';
+    if (progress > 0.2) return 'var(--warning)';
+    return 'var(--destructive)';
+  };
+
+  const displaySeconds = mode === 'countdown' ? remainingSeconds : elapsedSeconds;
+  const size = isFullscreen ? 320 : 280;
+  const strokeWidth = 12;
+  const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - progress * circumference;
+  const strokeDashoffset = circumference * (1 - progress);
+
+  const fullscreenToggle = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+  };
 
   return (
-    <div
-      ref={containerRef}
-      className={cn(
-        'bg-gray-900 text-white min-h-[600px] flex flex-col',
-        isFullscreen && 'fixed inset-0 z-50 min-h-screen',
-      )}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-800">
-        <div className="flex gap-2">
+    <div className={`flex flex-col ${isFullscreen ? 'h-screen' : 'min-h-[600px]'}`}>
+      {/* Top bar */}
+      <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
+        <div className="flex gap-1 p-1 rounded-xl bg-[var(--muted)]">
           <button
             onClick={() => switchMode('countdown')}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all',
-              mode === 'countdown'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-800 text-gray-400 hover:text-white',
-            )}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              mode === 'countdown' ? 'bg-[var(--background)] shadow-sm' : 'text-[var(--muted-foreground)]'
+            }`}
           >
-            <TimerIcon className="w-4 h-4" />
             倒计时
           </button>
           <button
             onClick={() => switchMode('stopwatch')}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all',
-              mode === 'stopwatch'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-800 text-gray-400 hover:text-white',
-            )}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              mode === 'stopwatch' ? 'bg-[var(--background)] shadow-sm' : 'text-[var(--muted-foreground)]'
+            }`}
           >
-            <Clock className="w-4 h-4" />
             正计时
           </button>
         </div>
-
         <button
-          onClick={toggleFullscreen}
-          className="p-2.5 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors"
-          title={isFullscreen ? '退出全屏' : '全屏显示'}
+          onClick={fullscreenToggle}
+          className="p-2 rounded-lg hover:bg-[var(--muted)] transition-colors"
+          title={isFullscreen ? '退出全屏' : '全屏'}
         >
-          {isFullscreen ? (
-            <Minimize2 className="w-5 h-5" />
-          ) : (
-            <Maximize2 className="w-5 h-5" />
-          )}
+          {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
         </button>
       </div>
 
-      {/* Timer Display */}
       <div className="flex-1 flex flex-col items-center justify-center p-6">
-        {/* Circle */}
+        {/* Circle Timer */}
         <div className="relative mb-8">
-          <svg width={circleSize} height={circleSize} className="transform -rotate-90">
-            {/* 背景圆环 */}
+          <svg width={size} height={size} className="-rotate-90">
             <circle
-              cx={circleSize / 2}
-              cy={circleSize / 2}
+              cx={size / 2}
+              cy={size / 2}
               r={radius}
               fill="none"
-              stroke="#374151"
+              stroke="var(--muted)"
               strokeWidth={strokeWidth}
             />
-            {/* 进度圆环 */}
-            <circle
-              cx={circleSize / 2}
-              cy={circleSize / 2}
+            <motion.circle
+              cx={size / 2}
+              cy={size / 2}
               r={radius}
               fill="none"
-              stroke={getProgressColor()}
+              stroke={getColor()}
               strokeWidth={strokeWidth}
               strokeLinecap="round"
               strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              className="transition-all duration-100"
+              strokeDashoffset={mode === 'countdown' ? strokeDashoffset : 0}
+              transition={{ strokeDashoffset: { duration: 0.1 }, stroke: { duration: 0.3 } }}
+              style={{ filter: `drop-shadow(0 0 8px ${getColor()}40)` }}
             />
           </svg>
-
-          {/* 时间文字 */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            {isFinished ? (
-              <div className="text-center animate-pulse-flash">
-                <div className="text-2xl md:text-3xl font-bold text-red-400 mb-2">
-                  ⏰ 时间到！
-                </div>
-                <div className={cn('text-5xl md:text-6xl font-mono font-bold', getTimeColor())}>
-                  {formatTime(0)}
-                </div>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={displaySeconds + (isFinished ? 'end' : '')}
+                initial={{ scale: 1 }}
+                animate={{ scale: isFinished ? [1, 1.1, 1] : 1 }}
+                transition={{ duration: 0.5 }}
+                className={`font-mono font-bold tracking-tight ${
+                  isFullscreen ? 'text-7xl' : 'text-6xl'
+                } ${isFinished ? 'text-[var(--destructive)]' : ''}`}
+                style={{ color: isFinished ? undefined : getColor() }}
+              >
+                {formatTime(displaySeconds)}
+              </motion.div>
+            </AnimatePresence>
+            {isFinished && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-2 text-xl font-bold text-[var(--destructive)]"
+              >
+                ⏰ 时间到！
+              </motion.div>
+            )}
+            {mode === 'stopwatch' && isRunning && (
+              <div className="text-sm text-[var(--muted-foreground)] mt-1 font-mono">
+                {formatTimeWithMs(elapsedSeconds).split('.')[1]}
               </div>
-            ) : (
-              <>
-                <div
-                  className={cn(
-                    'text-6xl md:text-7xl lg:text-8xl font-mono font-bold tabular-nums transition-colors',
-                    getTimeColor(),
-                  )}
-                  style={{ textShadow: '0 4px 20px rgba(0,0,0,0.3)' }}
-                >
-                  {formatTime(currentTime)}
-                </div>
-                {mode === 'countdown' && totalTime > 0 && (
-                  <div className="text-gray-500 text-sm mt-2">
-                    总时长 {formatTime(totalTime)}
-                  </div>
-                )}
-              </>
             )}
           </div>
         </div>
 
         {/* Controls */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 mb-8">
           <button
-            onClick={resetTimer}
-            className="p-4 bg-gray-800 hover:bg-gray-700 rounded-2xl transition-colors"
+            onClick={reset}
+            className="w-14 h-14 rounded-full bg-[var(--muted)] flex items-center justify-center hover:bg-[var(--muted)]/80 transition-colors"
             title="重置"
           >
-            <RotateCcw className="w-6 h-6" />
+            <RotateCcw size={22} />
           </button>
-
           <button
-            onClick={toggleTimer}
-            disabled={mode === 'countdown' && currentTime <= 0 && !isFinished}
-            className={cn(
-              'w-20 h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center transition-all shadow-lg',
-              isRunning
-                ? 'bg-amber-500 hover:bg-amber-600'
-                : 'bg-indigo-600 hover:bg-indigo-700',
-              'disabled:opacity-50 disabled:cursor-not-allowed',
-            )}
+            onClick={toggleStart}
+            disabled={mode === 'countdown' && remainingSeconds === 0 && !isRunning}
+            className="w-20 h-20 rounded-full gradient-bg text-white flex items-center justify-center shadow-lg hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {isRunning ? (
-              <Pause className="w-10 h-10 md:w-12 md:h-12" fill="currentColor" />
-            ) : (
-              <Play className="w-10 h-10 md:w-12 md:h-12 ml-1" fill="currentColor" />
-            )}
+            {isRunning ? <Pause size={32} /> : <Play size={32} className="ml-1" />}
           </button>
-
           {mode === 'stopwatch' ? (
             <button
               onClick={addLap}
               disabled={!isRunning}
-              className="p-4 bg-gray-800 hover:bg-gray-700 rounded-2xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-14 h-14 rounded-full bg-[var(--muted)] flex items-center justify-center hover:bg-[var(--muted)]/80 transition-colors disabled:opacity-50"
               title="计次"
             >
-              <Flag className="w-6 h-6" />
+              <ListOrdered size={22} />
             </button>
           ) : (
-            <div className="w-14" />
+            <button
+              onClick={() => setShowCustomInput(!showCustomInput)}
+              className="w-14 h-14 rounded-full bg-[var(--muted)] flex items-center justify-center hover:bg-[var(--muted)]/80 transition-colors"
+              title="自定义时间"
+            >
+              <Clock size={22} />
+            </button>
           )}
         </div>
 
-        {/* Countdown: Presets & Input */}
+        {/* Presets (countdown mode) */}
         {mode === 'countdown' && (
-          <div className="mt-10 w-full max-w-md">
-            <div className="text-sm text-gray-400 mb-3 text-center">快捷设置</div>
-            <div className="flex flex-wrap justify-center gap-2 mb-6">
-              {presetTimes.map((preset) => (
+          <div className="w-full max-w-md">
+            <div className="flex flex-wrap justify-center gap-2 mb-4">
+              {PRESETS.map((min) => (
                 <button
-                  key={preset.seconds}
-                  onClick={() => setCountdownTime(preset.seconds)}
-                  className={cn(
-                    'px-4 py-2 rounded-xl text-sm font-medium transition-colors',
-                    totalTime === preset.seconds
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700',
-                  )}
+                  key={min}
+                  onClick={() => setPreset(min)}
+                  disabled={isRunning}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                    totalSeconds === min * 60 && !isRunning
+                      ? 'gradient-bg text-white'
+                      : 'bg-[var(--muted)] text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
+                  } disabled:opacity-50`}
                 >
-                  {preset.label}
+                  {min}分钟
                 </button>
               ))}
             </div>
 
-            {/* Manual Input */}
-            <div className="flex items-center justify-center gap-3">
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  max="999"
-                  value={inputMinutes}
-                  onChange={(e) => setInputMinutes(Math.max(0, parseInt(e.target.value) || 0))}
-                  className="w-16 h-10 bg-gray-800 border border-gray-700 rounded-xl text-center text-white font-mono text-lg focus:border-indigo-500 focus:outline-none"
-                />
-                <span className="text-gray-400">分</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  max="59"
-                  value={inputSeconds}
-                  onChange={(e) =>
-                    setInputSeconds(Math.min(59, Math.max(0, parseInt(e.target.value) || 0)))
-                  }
-                  className="w-16 h-10 bg-gray-800 border border-gray-700 rounded-xl text-center text-white font-mono text-lg focus:border-indigo-500 focus:outline-none"
-                />
-                <span className="text-gray-400">秒</span>
-              </div>
-              <button
-                onClick={applyManualTime}
-                className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-xl text-sm transition-colors"
-              >
-                应用
-              </button>
-            </div>
+            <AnimatePresence>
+              {showCustomInput && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="flex gap-2 mt-2">
+                    <input
+                      type="number"
+                      value={customMinutes}
+                      onChange={(e) => setCustomMinutes(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && applyCustom()}
+                      placeholder="自定义分钟数 (1-180)"
+                      className="flex-1 px-4 py-2 rounded-xl text-sm"
+                      min={1}
+                      max={180}
+                    />
+                    <button
+                      onClick={applyCustom}
+                      className="px-5 py-2 rounded-xl gradient-bg text-white text-sm font-medium"
+                    >
+                      应用
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
 
-        {/* Stopwatch: Laps */}
+        {/* Laps (stopwatch mode) */}
         {mode === 'stopwatch' && laps.length > 0 && (
-          <div className="mt-8 w-full max-w-md">
-            <div className="text-sm text-gray-400 mb-3 flex items-center gap-2">
-              <Flag className="w-4 h-4" />
-              计次记录 ({laps.length})
-            </div>
-            <div className="max-h-40 overflow-y-auto space-y-2 bg-gray-800/50 rounded-xl p-3">
-              {laps.map((lap) => (
+          <div className="w-full max-w-md mt-4 max-h-48 overflow-y-auto">
+            <h4 className="text-sm font-semibold mb-2 text-[var(--muted-foreground)]">计次记录</h4>
+            <div className="space-y-1">
+              {laps.map((lap, i) => (
                 <div
-                  key={lap.index}
-                  className="flex items-center justify-between text-sm font-mono"
+                  key={i}
+                  className="flex justify-between px-3 py-2 rounded-lg text-sm bg-[var(--muted)]/50"
                 >
-                  <span className="text-gray-400">#{lap.index}</span>
-                  <span className="text-emerald-400">+{formatTime(lap.time)}</span>
-                  <span className="text-white">{formatTime(lap.totalTime)}</span>
+                  <span className="text-[var(--muted-foreground)]">#{laps.length - i}</span>
+                  <span className="font-mono">{formatTime(lap)}</span>
                 </div>
               ))}
             </div>
