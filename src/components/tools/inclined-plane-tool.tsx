@@ -155,18 +155,11 @@ export default function InclinedPlaneTool() {
     ctx.lineTo(blockCenterX - paraX - perpX, blockCenterY - paraY - perpY);
     ctx.closePath();
 
-    const blockGradient = ctx.createLinearGradient(
-      blockCenterX - paraX,
-      blockCenterY - paraY,
-      blockCenterX + paraX,
-      blockCenterY + paraY
-    );
-    blockGradient.addColorStop(0, '#6366F1');
-    blockGradient.addColorStop(1, '#3B82F6');
-    ctx.fillStyle = blockGradient;
+    // 黄色方块木块
+    ctx.fillStyle = '#FBBF24';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#B45309';
+    ctx.lineWidth = 2.5;
     ctx.stroke();
 
     // 重力箭头
