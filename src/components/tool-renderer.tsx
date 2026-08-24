@@ -9,6 +9,7 @@ import WheelTool from './tools/wheel-tool';
 import GroupingTool from './tools/grouping-tool';
 import MindMapTool from './tools/mindmap-tool';
 import PeriodicTableTool from './tools/periodic-table-tool';
+import InclinedPlaneTool from './tools/inclined-plane-tool';
 
 interface Props {
   tool: {
@@ -49,6 +50,8 @@ export default function ToolRenderer({ tool, isFullscreen = false }: Props) {
       return <MindMapTool isFullscreen={isFullscreen} />;
     case 'periodic-table':
       return <PeriodicTableTool isFullscreen={isFullscreen} />;
+    case 'inclined-plane':
+      return <InclinedPlaneTool />;
     default:
       return (
         <div className="flex items-center justify-center h-full text-[var(--muted-foreground)]">
