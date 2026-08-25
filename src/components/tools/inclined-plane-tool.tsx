@@ -136,31 +136,23 @@ export default function InclinedPlaneTool() {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // 木块位置计算
+    // 木块位置计算（中心）
     const s = Math.min(posRef.current, inclineLength - blockSize);
     const blockCenterX = topX + (s + blockSize / 2) * scale * Math.cos(theta);
     const blockCenterY = topY + (s + blockSize / 2) * scale * Math.sin(theta);
 
-    // 绘制木块（正方形，垂直斜面方向）
+    // 绘制黄色正方形方块（保持水平，不随斜面旋转）
     const bs = (blockSize * scale) / 2;
-    const perpX = -Math.sin(theta) * bs;
-    const perpY = -Math.cos(theta) * bs;
-    const paraX = Math.cos(theta) * bs;
-    const paraY = Math.sin(theta) * bs;
+    const blockBottomY = blockCenterY; // 方块底部贴在斜面上
+    const blockY = blockBottomY - bs * 2; // 方块顶部Y坐标
+    const blockLeft = blockCenterX - bs;
+    const blockRight = blockCenterX + bs;
 
-    ctx.beginPath();
-    ctx.moveTo(blockCenterX - paraX + perpX, blockCenterY - paraY + perpY);
-    ctx.lineTo(blockCenterX + paraX + perpX, blockCenterY + paraY + perpY);
-    ctx.lineTo(blockCenterX + paraX - perpX, blockCenterY + paraY - perpY);
-    ctx.lineTo(blockCenterX - paraX - perpX, blockCenterY - paraY - perpY);
-    ctx.closePath();
-
-    // 黄色方块木块
     ctx.fillStyle = '#FBBF24';
-    ctx.fill();
+    ctx.fillRect(blockLeft, blockY, bs * 2, bs * 2);
     ctx.strokeStyle = '#B45309';
     ctx.lineWidth = 2.5;
-    ctx.stroke();
+    ctx.strokeRect(blockLeft, blockY, bs * 2, bs * 2);
 
     // 重力箭头
     if (runningRef.current || pausedRef.current) {
