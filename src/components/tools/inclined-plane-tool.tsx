@@ -465,24 +465,24 @@ export default function InclinedPlaneTool() {
   }, [drawScene, drawChart]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <div className="h-[calc(100vh-210px)] min-h-[500px] grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0">
       {/* 左侧控制面板 */}
-      <div className="lg:col-span-3 space-y-5">
-        <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
-          <h3 className="text-lg font-semibold text-[#E8ECF4] mb-5 flex items-center gap-2">
-            <Zap className="w-5 h-5 text-amber-400" />
+      <div className="lg:col-span-3 flex flex-col gap-3 min-h-0">
+        <div className="bg-white/[0.04] border border-white/10 rounded-xl p-4 backdrop-blur-xl flex-shrink-0">
+          <h3 className="text-sm font-semibold text-[#E8ECF4] mb-3 flex items-center gap-2">
+            <Zap className="w-4 h-4 text-amber-400" />
             参数控制
           </h3>
 
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* 斜面角度 */}
             <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-sm text-[#8892A4] flex items-center gap-2">
-                  <Triangle className="w-4 h-4" />
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="text-xs text-[#8892A4] flex items-center gap-1.5">
+                  <Triangle className="w-3.5 h-3.5" />
                   斜面角度
                 </label>
-                <span className="text-sm font-semibold text-blue-400">{angle}°</span>
+                <span className="text-xs font-semibold text-blue-400 font-mono">{angle}°</span>
               </div>
               <input
                 type="range"
@@ -491,23 +491,23 @@ export default function InclinedPlaneTool() {
                 step="1"
                 value={angle}
                 onChange={(e) => setAngle(Number(e.target.value))}
-                className="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer
-                  [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5
+                className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer
+                  [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
                   [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-br
                   [&::-webkit-slider-thumb]:from-blue-500 [&::-webkit-slider-thumb]:to-indigo-500
-                  [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg
+                  [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow
                   [&::-webkit-slider-thumb]:shadow-blue-500/30"
               />
             </div>
 
             {/* 木块质量 */}
             <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-sm text-[#8892A4] flex items-center gap-2">
-                  <Weight className="w-4 h-4" />
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="text-xs text-[#8892A4] flex items-center gap-1.5">
+                  <Weight className="w-3.5 h-3.5" />
                   木块质量
                 </label>
-                <span className="text-sm font-semibold text-blue-400">{mass.toFixed(1)} kg</span>
+                <span className="text-xs font-semibold text-blue-400 font-mono">{mass.toFixed(1)} kg</span>
               </div>
               <input
                 type="range"
@@ -516,23 +516,23 @@ export default function InclinedPlaneTool() {
                 step="0.1"
                 value={mass}
                 onChange={(e) => setMass(Number(e.target.value))}
-                className="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer
-                  [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5
+                className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer
+                  [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
                   [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-br
                   [&::-webkit-slider-thumb]:from-blue-500 [&::-webkit-slider-thumb]:to-indigo-500
-                  [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg
+                  [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow
                   [&::-webkit-slider-thumb]:shadow-blue-500/30"
               />
             </div>
 
             {/* 摩擦系数 */}
             <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-sm text-[#8892A4] flex items-center gap-2">
-                  <Gauge className="w-4 h-4" />
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="text-xs text-[#8892A4] flex items-center gap-1.5">
+                  <Gauge className="w-3.5 h-3.5" />
                   摩擦系数 μ
                 </label>
-                <span className="text-sm font-semibold text-blue-400">{friction.toFixed(2)}</span>
+                <span className="text-xs font-semibold text-blue-400 font-mono">{friction.toFixed(2)}</span>
               </div>
               <input
                 type="range"
@@ -541,79 +541,79 @@ export default function InclinedPlaneTool() {
                 step="0.01"
                 value={friction}
                 onChange={(e) => setFriction(Number(e.target.value))}
-                className="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer
-                  [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5
+                className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer
+                  [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
                   [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-br
                   [&::-webkit-slider-thumb]:from-blue-500 [&::-webkit-slider-thumb]:to-indigo-500
-                  [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg
+                  [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow
                   [&::-webkit-slider-thumb]:shadow-blue-500/30"
               />
             </div>
           </div>
 
           {/* 控制按钮 */}
-          <div className="flex gap-3 mt-6">
+          <div className="flex gap-2 mt-4">
             {!isRunning || isPaused ? (
               <button
                 onClick={handleStart}
                 disabled={acceleration === 0}
-                className="flex-1 flex items-center justify-center gap-2 py-3 px-4
-                  bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl
-                  font-medium hover:from-blue-600 hover:to-indigo-600 transition-all
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3
+                  bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg
+                  text-sm font-medium hover:from-blue-600 hover:to-indigo-600 transition-all
                   disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20
                   active:scale-[0.98]"
               >
-                <Play className="w-5 h-5" />
+                <Play className="w-4 h-4" />
                 开始
               </button>
             ) : (
               <button
                 onClick={handlePause}
-                className="flex-1 flex items-center justify-center gap-2 py-3 px-4
-                  bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl
-                  font-medium hover:bg-amber-500/30 transition-all active:scale-[0.98]"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3
+                  bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg
+                  text-sm font-medium hover:bg-amber-500/30 transition-all active:scale-[0.98]"
               >
-                <Pause className="w-5 h-5" />
+                <Pause className="w-4 h-4" />
                 暂停
               </button>
             )}
             <button
               onClick={handleReset}
-              className="flex items-center justify-center gap-2 py-3 px-4
-                bg-white/5 text-[#8892A4] border border-white/10 rounded-xl
-                font-medium hover:bg-white/10 hover:text-[#E8ECF4] transition-all
+              className="flex items-center justify-center gap-1.5 py-2.5 px-3
+                bg-white/5 text-[#8892A4] border border-white/10 rounded-lg
+                text-sm font-medium hover:bg-white/10 hover:text-[#E8ECF4] transition-all
                 active:scale-[0.98]"
               title="重置"
             >
-              <RotateCcw className="w-5 h-5" />
+              <RotateCcw className="w-4 h-4" />
             </button>
           </div>
         </div>
 
         {/* 实时数据 */}
-        <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
-          <h3 className="text-lg font-semibold text-[#E8ECF4] mb-4">实时数据</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center py-2 border-b border-white/5">
-              <span className="text-sm text-[#8892A4]">时间</span>
-              <span className="text-lg font-semibold text-[#E8ECF4] font-mono">{time.toFixed(2)} s</span>
+        <div className="bg-white/[0.04] border border-white/10 rounded-xl p-4 backdrop-blur-xl flex-1 min-h-0 overflow-auto">
+          <h3 className="text-sm font-semibold text-[#E8ECF4] mb-3">实时数据</h3>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center py-1.5 border-b border-white/5">
+              <span className="text-xs text-[#8892A4]">时间</span>
+              <span className="text-sm font-semibold text-[#E8ECF4] font-mono">{time.toFixed(2)} s</span>
             </div>
-            <div className="flex justify-between items-center py-2 border-b border-white/5">
-              <span className="text-sm text-[#8892A4]">位移</span>
-              <span className="text-lg font-semibold text-blue-400 font-mono">{position.toFixed(2)} m</span>
+            <div className="flex justify-between items-center py-1.5 border-b border-white/5">
+              <span className="text-xs text-[#8892A4]">位移</span>
+              <span className="text-sm font-semibold text-blue-400 font-mono">{position.toFixed(2)} m</span>
             </div>
-            <div className="flex justify-between items-center py-2 border-b border-white/5">
-              <span className="text-sm text-[#8892A4]">速度</span>
-              <span className="text-lg font-semibold text-cyan-400 font-mono">{velocity.toFixed(2)} m/s</span>
+            <div className="flex justify-between items-center py-1.5 border-b border-white/5">
+              <span className="text-xs text-[#8892A4]">速度</span>
+              <span className="text-sm font-semibold text-cyan-400 font-mono">{velocity.toFixed(2)} m/s</span>
             </div>
-            <div className="flex justify-between items-center py-2">
-              <span className="text-sm text-[#8892A4]">加速度</span>
-              <span className="text-lg font-semibold text-amber-400 font-mono">{acceleration.toFixed(2)} m/s²</span>
+            <div className="flex justify-between items-center py-1.5">
+              <span className="text-xs text-[#8892A4]">加速度</span>
+              <span className="text-sm font-semibold text-amber-400 font-mono">{acceleration.toFixed(2)} m/s²</span>
             </div>
           </div>
           {acceleration === 0 && (
-            <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-              <p className="text-xs text-amber-400">
+            <div className="mt-3 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <p className="text-xs text-amber-400 leading-relaxed">
                 ⚡ 摩擦力大于下滑力，木块保持静止。请增大斜面角度或减小摩擦系数。
               </p>
             </div>
@@ -622,24 +622,24 @@ export default function InclinedPlaneTool() {
       </div>
 
       {/* 中间动画 + 右侧曲线 */}
-      <div className="lg:col-span-9 space-y-6">
+      <div className="lg:col-span-9 flex flex-col gap-3 min-h-0">
         {/* 动画区域 */}
-        <div className="bg-white/[0.04] border border-white/10 rounded-2xl backdrop-blur-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-[#E8ECF4]">斜面实验</h3>
-            <span className="text-xs text-[#8892A4]">g = 9.8 m/s²</span>
+        <div className="bg-white/[0.04] border border-white/10 rounded-xl backdrop-blur-xl overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="px-4 py-2.5 border-b border-white/5 flex items-center justify-between flex-shrink-0">
+            <h3 className="text-sm font-semibold text-[#E8ECF4]">斜面实验</h3>
+            <span className="text-xs text-[#8892A4] font-mono">g = 9.8 m/s²</span>
           </div>
-          <div className="h-[380px] w-full">
+          <div className="flex-1 min-h-0 w-full">
             <canvas ref={canvasRef} />
           </div>
         </div>
 
         {/* 数据曲线 */}
-        <div className="bg-white/[0.04] border border-white/10 rounded-2xl backdrop-blur-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-white/5">
-            <h3 className="text-lg font-semibold text-[#E8ECF4]">运动曲线</h3>
+        <div className="bg-white/[0.04] border border-white/10 rounded-xl backdrop-blur-xl overflow-hidden flex-shrink-0 h-[220px] flex flex-col">
+          <div className="px-4 py-2.5 border-b border-white/5 flex-shrink-0">
+            <h3 className="text-sm font-semibold text-[#E8ECF4]">运动曲线</h3>
           </div>
-          <div className="h-[260px] w-full p-4">
+          <div className="flex-1 min-h-0 w-full p-3">
             <canvas ref={chartCanvasRef} />
           </div>
         </div>
