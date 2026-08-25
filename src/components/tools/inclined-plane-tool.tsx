@@ -136,23 +136,24 @@ export default function InclinedPlaneTool() {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // 木块位置计算（中心）
+    // 木块位置计算（中心在斜面上）
     const s = Math.min(posRef.current, inclineLength - blockSize);
     const blockCenterX = topX + (s + blockSize / 2) * scale * Math.cos(theta);
     const blockCenterY = topY + (s + blockSize / 2) * scale * Math.sin(theta);
 
-    // 绘制黄色正方形方块（保持水平，不随斜面旋转）
-    const bs = (blockSize * scale) / 2;
-    const blockBottomY = blockCenterY; // 方块底部贴在斜面上
-    const blockY = blockBottomY - bs * 2; // 方块顶部Y坐标
-    const blockLeft = blockCenterX - bs;
-    const blockRight = blockCenterX + bs;
-
+    // 绘制黄色正方形方块（大小固定，底面贴在斜面上）
+    ctx.save();
+    ctx.translate(blockCenterX, blockCenterY);
+    ctx.rotate(angle * Math.PI / 180);
+    
+    const halfSize = 20; // 固定像素大小，不随缩放变化
     ctx.fillStyle = '#FBBF24';
-    ctx.fillRect(blockLeft, blockY, bs * 2, bs * 2);
+    ctx.fillRect(-halfSize, -halfSize, halfSize * 2, halfSize * 2);
     ctx.strokeStyle = '#B45309';
     ctx.lineWidth = 2.5;
-    ctx.strokeRect(blockLeft, blockY, bs * 2, bs * 2);
+    ctx.strokeRect(-halfSize, -halfSize, halfSize * 2, halfSize * 2);
+    
+    ctx.restore();
 
     // 重力箭头
     if (runningRef.current || pausedRef.current) {
