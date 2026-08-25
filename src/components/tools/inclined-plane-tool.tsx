@@ -136,30 +136,32 @@ export default function InclinedPlaneTool() {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // 木块位置计算（中心在斜面上）
+    // 木块位置计算（底部中心点在斜面上）
     const s = Math.min(posRef.current, inclineLength - blockSize);
-    const blockCenterX = topX + (s + blockSize / 2) * scale * Math.cos(theta);
-    const blockCenterY = topY + (s + blockSize / 2) * scale * Math.sin(theta);
+    const blockBottomX = topX + (s + blockSize / 2) * scale * Math.cos(theta);
+    const blockBottomY = topY + (s + blockSize / 2) * scale * Math.sin(theta);
 
-    // 绘制黄色正方形方块（大小固定，底面贴在斜面上）
+    // 绘制黄色正方形方块（以底边中点为旋转中心，大小固定，底面贴斜面）
+    const halfSize = 20; // 固定像素大小
     ctx.save();
-    ctx.translate(blockCenterX, blockCenterY);
+    ctx.translate(blockBottomX, blockBottomY);
     ctx.rotate(angle * Math.PI / 180);
-    
-    const halfSize = 20; // 固定像素大小，不随缩放变化
+    // 局部坐标：x 沿斜面方向，y 垂直斜面向上（向外）
+    // 方块底部中点在原点，方块向上延伸
     ctx.fillStyle = '#FBBF24';
-    ctx.fillRect(-halfSize, -halfSize, halfSize * 2, halfSize * 2);
+    ctx.fillRect(-halfSize, -halfSize * 2, halfSize * 2, halfSize * 2);
     ctx.strokeStyle = '#B45309';
     ctx.lineWidth = 2.5;
-    ctx.strokeRect(-halfSize, -halfSize, halfSize * 2, halfSize * 2);
-    
+    ctx.strokeRect(-halfSize, -halfSize * 2, halfSize * 2, halfSize * 2);
     ctx.restore();
 
-    // 重力箭头
+    // 重力箭头（从方块中心向下）
     if (runningRef.current || pausedRef.current) {
+      const normalX = Math.cos(theta - Math.PI / 2);
+      const normalY = Math.sin(theta - Math.PI / 2);
       const arrowLen = 30;
-      const arrowX = blockCenterX;
-      const arrowY = blockCenterY;
+      const arrowX = blockBottomX + normalX * halfSize;
+      const arrowY = blockBottomY + normalY * halfSize;
       ctx.beginPath();
       ctx.moveTo(arrowX, arrowY);
       ctx.lineTo(arrowX, arrowY + arrowLen);
